@@ -1,0 +1,45 @@
+
+services:
+  llm:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: llm
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./ollama_data:/root/.ollama
+      
+
+  database:
+    image: ankane/pgvector:latest
+    container_name: pgvector
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: vector_db
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  embeddings:
+    build: ./embeddings
+    container_name: embeddings
+    ports:
+      - "8001:8000"
+
+  backend:
+    build: ./backend
+    container_name: rag_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@database:5432/vector_db
+      - LLM_URL=http://llm:5000
+      - EMBEDDING_URL=http://embeddings:8000
+    depends_on:
+      - llm
+      - database
+      - embeddings
+
